@@ -1,100 +1,242 @@
-local replicatedStorage = game:GetService("ReplicatedStorage")
-local collectionService = game:GetService("CollectionService")
-local players = game:GetService("Players")
-local runService = game:GetService("RunService")
- 
-local localPlayer = players.LocalPlayer
-local currentCamera = workspace.CurrentCamera
- 
-local hatchFunction = getupvalue(getupvalue(getconnections(replicatedStorage.GameEvents.PetEggService.OnClientEvent)[1].Function, 1), 2)
-local eggModels = getupvalue(hatchFunction, 1)
-local eggPets = getupvalue(hatchFunction, 2)
- 
-local espCache = {}
-local activeEggs = {}
- 
-local function getObjectFromId(objectId)
-    for eggModel in eggModels do
-        if eggModel:GetAttribute("OBJECT_UUID") ~= objectId then continue end
-        return eggModel
-    end
-end
- 
-local function UpdateEsp(objectId, petName)
-    local object = getObjectFromId(objectId)
-    if not object or not espCache[objectId] then return end
- 
-    local eggName = object:GetAttribute("EggName")
-    espCache[objectId].Text = `{eggName} | {petName}`
-end
- 
-local function AddEsp(object)
-    if object:GetAttribute("OWNER") ~= localPlayer.Name then return end
- 
-    local eggName = object:GetAttribute("EggName")
-    local petName = eggPets[object:GetAttribute("OBJECT_UUID")]
- 
-    local objectId = object:GetAttribute("OBJECT_UUID")
-    if not objectId then return end
- 
-    local label = Drawing.new("Text")
-    label.Text = `{eggName} | {petName or "?"}`
-    label.Size = 18
-    label.Color = Color3.new(1, 1, 1)
-    label.Outline = true
-    label.OutlineColor = Color3.new(0, 0, 0)
-    label.Center = true
-    label.Visible = false
- 
-    espCache[objectId] = label
-    activeEggs[objectId] = object
-end
- 
-local function RemoveEsp(object)
-    if object:GetAttribute("OWNER") ~= localPlayer.Name then return end
- 
-    local objectId = object:GetAttribute("OBJECT_UUID")
-    if espCache[objectId] then
-        espCache[objectId]:Remove()
-        espCache[objectId] = nil
-    end
- 
-    activeEggs[objectId] = nil
-end
- 
-local function UpdateAllEsp()
-    for objectId, object in activeEggs do
-        if not object or not object:IsDescendantOf(workspace) then
-            activeEggs[objectId] = nil
-            if espCache[objectId] then
-                espCache[objectId].Visible = false
-            end
-            continue
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+local AnimalsModule = require(ReplicatedStorage.Datas.Animals)
+local TraitsModule = require(ReplicatedStorage.Datas.Traits)
+local PlotController = require(ReplicatedStorage.Controllers:WaitForChild("PlotController"))
+
+local MutationMultipliers = {
+    Gold = 0.25,
+    Diamond = 0.5,
+    Bloodrot = 1,
+    Candy = 3,
+    Lava = 5,
+    Rainbow = 9
+}
+
+local ALL_ANIMAL_NAMES = {
+    ["Noobini Pizzanini"] = true,
+    ["Lirilì Larilà"] = true,
+    ["Tim Cheese"] = true,
+    ["Fluriflura"] = true,
+    ["Svinina Bombardino"] = true,
+    ["Talpa Di Fero"] = true,
+    ["Pipi Kiwi"] = true,
+    ["Trippi Troppi"] = true,
+    ["Tung Tung Tung Sahur"] = true,
+    ["Gangster Footera"] = true,
+    ["Boneca Ambalabu"] = true,
+    ["Ta Ta Ta Ta Sahur"] = true,
+    ["Tric Trac Baraboom"] = true,
+    ["Bandito Bobritto"] = true,
+    ["Cacto Hipopotamo"] = true,
+    ["Cappuccino Assassino"] = true,
+    ["Brr Brr Patapim"] = true,
+    ["Trulimero Trulicina"] = true,
+    ["Bananita Dolphinita"] = true,
+    ["Brri Brri Bicus Dicus Bombicus"] = true,
+    ["Bambini Crostini"] = true,
+    ["Perochello Lemonchello"] = true,
+    ["Burbaloni Loliloli"] = true,
+    ["Chimpanzini Bananini"] = true,
+    ["Ballerina Cappuccina"] = true,
+    ["Chef Crabracadabra"] = true,
+    ["Glorbo Fruttodrillo"] = true,
+    ["Blueberrinni Octopusini"] = true,
+    ["Lionel Cactuseli"] = true,
+    ["Pandaccini Bananini"] = true,
+    ["Frigo Camelo"] = true,
+    ["Orangutini Ananassini"] = true,
+    ["Bombardiro Crocodilo"] = true,
+    ["Bombombini Gusini"] = true,
+    ["Rhino Toasterino"] = true,
+    ["Cavallo Virtuoso"] = true,
+    ["Spioniro Golubiro"] = true,
+    ["Zibra Zubra Zibralini"] = true,
+    ["Tigrilini Watermelini"] = true,
+    ["Cocofanto Elefanto"] = true,
+    ["Tralalero Tralala"] = true,
+    ["Odin Din Din Dun"] = true,
+    ["Girafa Celeste"] = true,
+    ["Gattatino Nyanino"] = true,
+    ["Trenostruzzo Turbo 3000"] = true,
+    ["Matteo"] = true,
+    ["Tigroligre Frutonni"] = true,
+    ["Orcalero Orcala"] = true,
+    ["Statutino Libertino"] = true,
+    ["Gattatino Neonino"] = true,
+    ["La Vacca Saturno Saturnita"] = true,
+    ["Los Tralaleritos"] = true,
+    ["Graipuss Medussi"] = true,
+    ["La Grande Combinasion"] = true,
+    ["Chimpanzini Spiderini"] = true,
+    ["Garama and Madundung"] = true,
+    ["Torrtuginni Dragonfrutini"] = true,
+    ["Las Tralaleritas"] = true,
+    ["Pot Hotspot"] = true,
+    ["Mythic Lucky Block"] = true,
+    ["Brainrot God Lucky Block"] = true,
+    ["Secret Lucky Block"] = true
+}
+
+local function getTraitMultiplier(model)
+    local traitJson = model:GetAttribute("Traits")
+    if not traitJson then return 1 end
+    local success, traitList = pcall(function()
+        return HttpService:JSONDecode(traitJson)
+    end)
+    if not success or typeof(traitList) ~= "table" then return 1 end
+    local mult = 1
+    for _, traitName in ipairs(traitList) do
+        local trait = TraitsModule[traitName]
+        if trait and trait.MultiplierModifier then
+            mult = mult * trait.MultiplierModifier
         end
- 
-        local label = espCache[objectId]
-        if label then
-            local pos, onScreen = currentCamera:WorldToViewportPoint(object:GetPivot().Position)
-            if onScreen then
-                label.Position = Vector2.new(pos.X, pos.Y)
-                label.Visible = true
-            else
-                label.Visible = false
-            end
+    end
+    return mult
+end
+
+local function getMutationMultiplier(model)
+    local mutation = model:GetAttribute("Mutation")
+    if mutation and MutationMultipliers[mutation] then
+        return MutationMultipliers[mutation]
+    end
+    return 1
+end
+
+local function getFinalGeneration(model)
+    local animalData = AnimalsModule[model.Name]
+    if not animalData then return 0, nil end
+    local baseGen = animalData.Generation or 0
+    local traitMult = getTraitMultiplier(model)
+    local mutationMult = getMutationMultiplier(model)
+    local total = math.round(baseGen * traitMult * mutationMult)
+    return total, model:GetAttribute("Mutation")
+end
+
+local function getMyPlot()
+    local ok, result = pcall(function() return PlotController:GetMyPlot() end)
+    if not ok or not result then return nil end
+    local plotModel = result and result.PlotModel
+    return typeof(plotModel) == "Instance" and plotModel or nil
+end
+
+local function isInEnemyPlot(model)
+    local myPlot = getMyPlot()
+    if not myPlot then return true end
+    return not myPlot:IsAncestorOf(model)
+end
+
+local function isBasePet(m)
+    return m:IsA("Model") and ALL_ANIMAL_NAMES[m.Name]
+end
+
+local function startRainbow(obj, prop)
+    local cycleTime = 4
+    task.spawn(function()
+        while obj and obj.Parent do
+            local h = (tick() % cycleTime) / cycleTime
+            obj[prop] = Color3.fromHSV(h, 1, 1)
+            RunService.Heartbeat:Wait()
         end
+    end)
+end
+
+local function formatNumber(n)
+    return tostring(n):reverse():gsub('%d%d%d', '%1,'):reverse():gsub('^,', '')
+end
+
+local function attachPetESP(m, g, mutationName)
+    local root = m:FindFirstChild("RootPart") or m:FindFirstChildWhichIsA("BasePart")
+    if not root then return end
+    local hl = Instance.new('Highlight')
+    hl.Name = "PetESP"
+    hl.Adornee = m
+    hl.OutlineColor = Color3.new(0, 0, 0)
+    hl.FillTransparency = 0.25
+    hl.OutlineTransparency = 0
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = m
+    startRainbow(hl, "FillColor")
+    startRainbow(hl, "OutlineColor")
+
+    local gui = Instance.new('BillboardGui')
+    gui.Name = "PetESP_Label"
+    gui.Adornee = root
+    gui.AlwaysOnTop = true
+    gui.Size = UDim2.new(0, 400, 0, 100)
+    gui.StudsOffset = Vector3.new(0, 6.5, 0)
+    gui.Parent = m
+
+    local n = Instance.new('TextLabel')
+    n.Size = UDim2.new(1, 0, 0.4, 0)
+    n.Position = UDim2.new(0.5, 0, 0.28, 0)
+    n.AnchorPoint = Vector2.new(0.5, 0.5)
+    n.BackgroundTransparency = 1
+    n.Font = Enum.Font.GothamBlack
+    n.TextSize = 22
+    n.Text = m.Name:upper()
+    n.TextXAlignment = Enum.TextXAlignment.Center
+    n.Parent = gui
+
+    local gL = Instance.new('TextLabel')
+    gL.Size = UDim2.new(1, 0, 0.4, 0)
+    gL.Position = UDim2.new(0.5, 0, 0.55, 0)
+    gL.AnchorPoint = Vector2.new(0.5, 0.5)
+    gL.BackgroundTransparency = 1
+    gL.Font = Enum.Font.GothamBlack
+    gL.TextSize = 28
+    gL.Text = '$' .. formatNumber(g) .. '/s'
+    gL.TextXAlignment = Enum.TextXAlignment.Center
+    gL.Parent = gui
+
+    if mutationName then
+        local mutL = Instance.new('TextLabel')
+        mutL.Size = UDim2.new(1, 0, 0.2, 0)
+        mutL.Position = UDim2.new(0.5, 0, 0.82, 0)
+        mutL.AnchorPoint = Vector2.new(0.5, 0.5)
+        mutL.BackgroundTransparency = 1
+        mutL.Font = Enum.Font.GothamBlack
+        mutL.TextSize = 20
+        mutL.Text = "Mutation: " .. tostring(mutationName)
+        mutL.TextXAlignment = Enum.TextXAlignment.Center
+        mutL.Parent = gui
+        startRainbow(mutL, 'TextColor3')
+    end
+
+    startRainbow(n, 'TextColor3')
+    startRainbow(gL, 'TextColor3')
+end
+
+local function clearPetESP()
+    for _, m in ipairs(workspace:GetChildren()) do
+        if m:FindFirstChild("PetESP") then m.PetESP:Destroy() end
+        if m:FindFirstChild("PetESP_Label") then m.PetESP_Label:Destroy() end
     end
 end
- 
-for _, object in collectionService:GetTagged("PetEggServer") do
-    task.spawn(AddEsp, object)
-end
- 
-collectionService:GetInstanceAddedSignal("PetEggServer"):Connect(AddEsp)
-collectionService:GetInstanceRemovedSignal("PetEggServer"):Connect(RemoveEsp)
- 
-local old; old = hookfunction(getconnections(replicatedStorage.GameEvents.EggReadyToHatch_RE.OnClientEvent)[1].Function, newcclosure(function(objectId, petName)
-    UpdateEsp(objectId, petName)
-    return old(objectId, petName)
-end))
- 
-runService.PreRender:Connect(UpdateAllEsp)
+
+local INTERVAL = 0.25
+local running = true
+
+task.spawn(function()
+    while running do
+        local highest, bestGen, mutationName = nil, -1, nil
+        for _, m in ipairs(workspace:GetChildren()) do
+            if isBasePet(m) and isInEnemyPlot(m) then
+                local g, mutName = getFinalGeneration(m)
+                if g > bestGen then
+                    bestGen = g
+                    highest = m
+                    mutationName = mutName
+                end
+            end
+        end
+        clearPetESP()
+        if highest then
+            attachPetESP(highest, bestGen, mutationName)
+        end
+        task.wait(INTERVAL)
+    end
+end)
