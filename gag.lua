@@ -184,7 +184,7 @@ local function attachPetESP(m, g, mutationName)
     gL.BackgroundTransparency = 1
     gL.Font = Enum.Font.GothamBlack
     gL.TextSize = 28
-    gL.Text = 'VALUE ' .. formatNumber(g)
+    gL.Text = '$' .. formatNumber(g) .. '/s'
     gL.TextXAlignment = Enum.TextXAlignment.Center
     gL.Parent = gui
 
