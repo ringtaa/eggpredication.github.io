@@ -7,78 +7,38 @@ local AnimalsModule = require(ReplicatedStorage.Datas.Animals)
 local TraitsModule = require(ReplicatedStorage.Datas.Traits)
 local PlotController = require(ReplicatedStorage.Controllers:WaitForChild("PlotController"))
 
-local MutationMultipliers = {
-    Gold = 0.25,
-    Diamond = 0.5,
-    Bloodrot = 1,
-    Candy = 3,
-    Lava = 5,
-    Rainbow = 9
+local MutationsMultipliers = {
+    ["Gold"] = 0.25,
+    ["Diamond"] = 0.5,
+    ["Bloodrot"] = 1,
+    ["Candy"] = 3,
+    ["Lava"] = 5,
+    ["Rainbow"] = 9
 }
 
 local ALL_ANIMAL_NAMES = {
-    ["Noobini Pizzanini"] = true,
-    ["Lirilì Larilà"] = true,
-    ["Tim Cheese"] = true,
-    ["Fluriflura"] = true,
-    ["Svinina Bombardino"] = true,
-    ["Talpa Di Fero"] = true,
-    ["Pipi Kiwi"] = true,
-    ["Trippi Troppi"] = true,
-    ["Tung Tung Tung Sahur"] = true,
-    ["Gangster Footera"] = true,
-    ["Boneca Ambalabu"] = true,
-    ["Ta Ta Ta Ta Sahur"] = true,
-    ["Tric Trac Baraboom"] = true,
-    ["Bandito Bobritto"] = true,
-    ["Cacto Hipopotamo"] = true,
-    ["Cappuccino Assassino"] = true,
-    ["Brr Brr Patapim"] = true,
-    ["Trulimero Trulicina"] = true,
-    ["Bananita Dolphinita"] = true,
-    ["Brri Brri Bicus Dicus Bombicus"] = true,
-    ["Bambini Crostini"] = true,
-    ["Perochello Lemonchello"] = true,
-    ["Burbaloni Loliloli"] = true,
-    ["Chimpanzini Bananini"] = true,
-    ["Ballerina Cappuccina"] = true,
-    ["Chef Crabracadabra"] = true,
-    ["Glorbo Fruttodrillo"] = true,
-    ["Blueberrinni Octopusini"] = true,
-    ["Lionel Cactuseli"] = true,
-    ["Pandaccini Bananini"] = true,
-    ["Frigo Camelo"] = true,
-    ["Orangutini Ananassini"] = true,
-    ["Bombardiro Crocodilo"] = true,
-    ["Bombombini Gusini"] = true,
-    ["Rhino Toasterino"] = true,
-    ["Cavallo Virtuoso"] = true,
-    ["Spioniro Golubiro"] = true,
-    ["Zibra Zubra Zibralini"] = true,
-    ["Tigrilini Watermelini"] = true,
-    ["Cocofanto Elefanto"] = true,
-    ["Tralalero Tralala"] = true,
-    ["Odin Din Din Dun"] = true,
-    ["Girafa Celeste"] = true,
-    ["Gattatino Nyanino"] = true,
-    ["Trenostruzzo Turbo 3000"] = true,
-    ["Matteo"] = true,
-    ["Tigroligre Frutonni"] = true,
-    ["Orcalero Orcala"] = true,
-    ["Statutino Libertino"] = true,
-    ["Gattatino Neonino"] = true,
-    ["La Vacca Saturno Saturnita"] = true,
-    ["Los Tralaleritos"] = true,
-    ["Graipuss Medussi"] = true,
-    ["La Grande Combinasion"] = true,
-    ["Chimpanzini Spiderini"] = true,
-    ["Garama and Madundung"] = true,
-    ["Torrtuginni Dragonfrutini"] = true,
-    ["Las Tralaleritas"] = true,
-    ["Pot Hotspot"] = true,
-    ["Mythic Lucky Block"] = true,
-    ["Brainrot God Lucky Block"] = true,
-    ["Secret Lucky Block"] = true
+    ["Noobini Pizzanini"] = true, ["LirilÃ¬ LarilÃ "] = true, ["Tim Cheese"] = true,
+    ["Fluriflura"] = true, ["Svinina Bombardino"] = true, ["Talpa Di Fero"] = true,
+    ["Pipi Kiwi"] = true, ["Trippi Troppi"] = true, ["Tung Tung Tung Sahur"] = true,
+    ["Gangster Footera"] = true, ["Boneca Ambalabu"] = true, ["Ta Ta Ta Ta Sahur"] = true,
+    ["Tric Trac Baraboom"] = true, ["Bandito Bobritto"] = true, ["Cacto Hipopotamo"] = true,
+    ["Cappuccino Assassino"] = true, ["Brr Brr Patapim"] = true, ["Trulimero Trulicina"] = true,
+    ["Bananita Dolphinita"] = true, ["Brri Brri Bicus Dicus Bombicus"] = true,
+    ["Bambini Crostini"] = true, ["Perochello Lemonchello"] = true, ["Burbaloni Loliloli"] = true,
+    ["Chimpanzini Bananini"] = true, ["Ballerina Cappuccina"] = true, ["Chef Crabracadabra"] = true,
+    ["Glorbo Fruttodrillo"] = true, ["Blueberrinni Octopusini"] = true, ["Lionel Cactuseli"] = true,
+    ["Pandaccini Bananini"] = true, ["Frigo Camelo"] = true, ["Orangutini Ananassini"] = true,
+    ["Bombardiro Crocodilo"] = true, ["Bombombini Gusini"] = true, ["Rhino Toasterino"] = true,
+    ["Cavallo Virtuoso"] = true, ["Spioniro Golubiro"] = true, ["Zibra Zubra Zibralini"] = true,
+    ["Tigrilini Watermelini"] = true, ["Cocofanto Elefanto"] = true, ["Tralalero Tralala"] = true,
+    ["Odin Din Din Dun"] = true, ["Girafa Celeste"] = true, ["Gattatino Nyanino"] = true,
+    ["Trenostruzzo Turbo 3000"] = true, ["Matteo"] = true, ["Tigroligre Frutonni"] = true,
+    ["Orcalero Orcala"] = true, ["Statutino Libertino"] = true, ["Gattatino Neonino"] = true,
+    ["La Vacca Saturno Saturnita"] = true, ["Los Tralaleritos"] = true, ["Graipuss Medussi"] = true,
+    ["La Grande Combinasion"] = true, ["Chimpanzini Spiderini"] = true,
+    ["Garama and Madundung"] = true, ["Torrtuginni Dragonfrutini"] = true,
+    ["Las Tralaleritas"] = true, ["Pot Hotspot"] = true, ["Mythic Lucky Block"] = true,
+    ["Brainrot God Lucky Block"] = true, ["Secret Lucky Block"] = true
 }
 
 local function getTraitMultiplier(model)
@@ -92,7 +52,7 @@ local function getTraitMultiplier(model)
     for _, traitName in ipairs(traitList) do
         local trait = TraitsModule[traitName]
         if trait and trait.MultiplierModifier then
-            mult = mult * trait.MultiplierModifier
+            mult *= trait.MultiplierModifier
         end
     end
     return mult
@@ -100,10 +60,7 @@ end
 
 local function getMutationMultiplier(model)
     local mutation = model:GetAttribute("Mutation")
-    if mutation and MutationMultipliers[mutation] then
-        return MutationMultipliers[mutation]
-    end
-    return 1
+    return (mutation and MutationsMultipliers[mutation]) or 1
 end
 
 local function getFinalGeneration(model)
@@ -145,10 +102,10 @@ local function startRainbow(obj, prop)
 end
 
 local function formatNumber(n)
-    return tostring(n):reverse():gsub('%d%d%d', '%1,'):reverse():gsub('^,', '')
+    return tostring(math.floor(n)):reverse():gsub('%d%d%d', '%1,'):reverse():gsub('^,', '')
 end
 
-local function attachPetESP(m, g, mutationName)
+local function attachPetESP(m, genValue, mutationName)
     local root = m:FindFirstChild("RootPart") or m:FindFirstChildWhichIsA("BasePart")
     if not root then return end
     local hl = Instance.new('Highlight')
@@ -188,7 +145,7 @@ local function attachPetESP(m, g, mutationName)
     gL.BackgroundTransparency = 1
     gL.Font = Enum.Font.GothamBlack
     gL.TextSize = 28
-    gL.Text = '$' .. formatNumber(g) .. '/s'
+    gL.Text = '$' .. formatNumber(genValue * 1000) .. '/s'
     gL.TextXAlignment = Enum.TextXAlignment.Center
     gL.Parent = gui
 
@@ -225,11 +182,11 @@ task.spawn(function()
         local highest, bestGen, mutationName = nil, -1, nil
         for _, m in ipairs(workspace:GetChildren()) do
             if isBasePet(m) and isInEnemyPlot(m) then
-                local g, mutName = getFinalGeneration(m)
+                local g, mut = getFinalGeneration(m)
                 if g > bestGen then
                     bestGen = g
                     highest = m
-                    mutationName = mutName
+                    mutationName = mut
                 end
             end
         end
