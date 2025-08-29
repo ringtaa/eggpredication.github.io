@@ -1,200 +1,294 @@
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local CoreGui = game:GetService("StarterGui")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
-local Remote = game:GetService("ReplicatedStorage").RemoteEvents.RequestTakeDiamonds
-local Interface = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Interface")
-local DiamondCount = Interface:WaitForChild("DiamondCount"):WaitForChild("Count")
-
-local a, b, c, d, e, totalDiamondsLabel, roundDiamondsLabel, infoLabel
-local chest, proxPrompt
-local startTime
-
-local function rainbowStroke(stroke)
-    task.spawn(function()
-        while true do
-            for hue = 0, 1, 0.02 do
-                stroke.Color = Color3.fromHSV(hue, 1, 1)
-                task.wait(0.01)
-            end
-        end
-    end)
-end
-
-local function hopServer()
-    local gameId = game.PlaceId
-    local success, body = pcall(function()
-        return game:HttpGet(("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(gameId))
-    end)
-    if success then
-        local data = HttpService:JSONDecode(body)
-        for _, server in ipairs(data.data) do
-            if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                pcall(function()
-                    TeleportService:TeleportToPlaceInstance(gameId, server.id, LocalPlayer)
-                end)
-                task.wait(0.05)
-                return
-            end
-        end
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local mouse = Players.LocalPlayer:GetMouse()
+local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/Singularity5490/rbimgui-2/main/rbimgui-2.lua"))()
+local window = ui.new({text="booga booga :flushed:", size=Vector2.new(400, 300)})
+local mainTab = window.new({text="main"})
+local combatTab = window.new({text="combat"})
+local autofarmTab = window.new({text="autofarm"})
+local killauraToggle = combatTab.new("Switch", {text="kill aura"})
+local autohealToggle = combatTab.new("Switch", {text="auto heal"})
+local autohealSlider = combatTab.new("Slider", {text="auto heal health", min=1, max=99, value=30})
+local breakauraToggle = mainTab.new("Switch", {text="mine aura"})
+local pickupToggle = mainTab.new("Switch", {text="auto pickup"})
+local autofarmToggle = autofarmTab.new("Switch", {text="everything autofarm"})
+mainTab.new("Label", {text="fly will freeze you when you run it"})
+local flyToggle = mainTab.new("Switch", {text="fly"})
+local autoPlant = autofarmTab.new("Switch", {text="auto plant fruit"})
+local autoharvest = autofarmTab.new("Switch", {text="auto harvest fruit"})
+local chosenFruit = "Bloodfruit"
+local fruits = {
+    "Bloodfruit",
+    "Sunfruit",
+    "Bluefruit",
+    "Berry"
+}
+local autoplantDropdown = autofarmTab.new("Dropdown", {text="fruits"})
+local plantButton = autofarmTab.new("Button", {text=" plant 5 boxes "})
+plantButton.event:Connect(function()
+    for i = 1, 5 do
+        local ohString1 = "Plant Box"
+        local ohCFrame2 = CFrame.new(Players.LocalPlayer.Character.HumanoidRootPart.Position.X,Players.LocalPlayer.Character.HumanoidRootPart.Position.Y-3,Players.LocalPlayer.Character.HumanoidRootPart.Position.Z+i, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+        local ohNumber3 = 0
+        game:GetService("ReplicatedStorage").Events.PlaceStructure:FireServer(ohString1, ohCFrame2, ohNumber3)
     end
-    task.wait(0.05)
-    hopServer()
+end)
+for i,v in pairs(fruits) do
+    autoplantDropdown.new(v)
+end
+autoplantDropdown.event:Connect(function(v)
+    chosenFruit = v
+end)
+
+
+
+
+FLYING = false
+iyflyspeed = 0.25
+vehicleflyspeed = 0.25
+
+
+-- i love stealing features from infinite yield and adding them to my script :sunglasses:
+function sFLY(vfly)
+    repeat wait() until Players.LocalPlayer and Players.LocalPlayer.Character and Players.LocalPlayer.Character.HumanoidRootPart and Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    repeat wait() until mouse
+    if flyKeyDown or flyKeyUp then flyKeyDown:Disconnect() flyKeyUp:Disconnect() end
+
+    local T = Players.LocalPlayer.Character.HumanoidRootPart
+    local CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+    local lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+    local SPEED = 0
+
+    local function FLY()
+        FLYING = true
+        local BG = Instance.new('BodyGyro')
+        local BV = Instance.new('BodyVelocity')
+        BG.P = 9e4
+        BG.Parent = T
+        BV.Parent = T
+        BG.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+        BG.cframe = T.CFrame
+        BV.velocity = Vector3.new(0, 0, 0)
+        BV.maxForce = Vector3.new(9e9, 9e9, 9e9)
+        task.spawn(function()
+            repeat wait()
+                if not vfly and Players.LocalPlayer.Character:FindFirstChildOfClass('Humanoid') then
+                    Players.LocalPlayer.Character:FindFirstChildOfClass('Humanoid').PlatformStand = true
+                end
+                if CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0 then
+                    SPEED = 50
+                elseif not (CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0) and SPEED ~= 0 then
+                    SPEED = 0
+                end
+                if (CONTROL.L + CONTROL.R) ~= 0 or (CONTROL.F + CONTROL.B) ~= 0 or (CONTROL.Q + CONTROL.E) ~= 0 then
+                    BV.velocity = ((workspace.CurrentCamera.CoordinateFrame.lookVector * (CONTROL.F + CONTROL.B)) + ((workspace.CurrentCamera.CoordinateFrame * CFrame.new(CONTROL.L + CONTROL.R, (CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - workspace.CurrentCamera.CoordinateFrame.p)) * SPEED
+                    lCONTROL = {F = CONTROL.F, B = CONTROL.B, L = CONTROL.L, R = CONTROL.R}
+                elseif (CONTROL.L + CONTROL.R) == 0 and (CONTROL.F + CONTROL.B) == 0 and (CONTROL.Q + CONTROL.E) == 0 and SPEED ~= 0 then
+                    BV.velocity = ((workspace.CurrentCamera.CoordinateFrame.lookVector * (lCONTROL.F + lCONTROL.B)) + ((workspace.CurrentCamera.CoordinateFrame * CFrame.new(lCONTROL.L + lCONTROL.R, (lCONTROL.F + lCONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - workspace.CurrentCamera.CoordinateFrame.p)) * SPEED
+                else
+                    BV.velocity = Vector3.new(0, 0, 0)
+                end
+                BG.cframe = workspace.CurrentCamera.CoordinateFrame
+            until not FLYING
+            CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+            lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+            SPEED = 0
+            BG:Destroy()
+            BV:Destroy()
+            if Players.LocalPlayer.Character:FindFirstChildOfClass('Humanoid') then
+                Players.LocalPlayer.Character:FindFirstChildOfClass('Humanoid').PlatformStand = false
+            end
+        end)
+    end
+    flyKeyDown = mouse.KeyDown:Connect(function(KEY)
+        if KEY:lower() == 'w' then
+            CONTROL.F = (vfly and vehicleflyspeed or iyflyspeed)
+        elseif KEY:lower() == 's' then
+            CONTROL.B = - (vfly and vehicleflyspeed or iyflyspeed)
+        elseif KEY:lower() == 'a' then
+            CONTROL.L = - (vfly and vehicleflyspeed or iyflyspeed)
+        elseif KEY:lower() == 'd' then 
+            CONTROL.R = (vfly and vehicleflyspeed or iyflyspeed)
+        elseif QEfly and KEY:lower() == 'e' then
+            CONTROL.Q = (vfly and vehicleflyspeed or iyflyspeed)*2
+        elseif QEfly and KEY:lower() == 'q' then
+            CONTROL.E = -(vfly and vehicleflyspeed or iyflyspeed)*2
+        end
+        pcall(function() workspace.CurrentCamera.CameraType = Enum.CameraType.Track end)
+    end)
+    flyKeyUp = mouse.KeyUp:Connect(function(KEY)
+        if KEY:lower() == 'w' then
+            CONTROL.F = 0
+        elseif KEY:lower() == 's' then
+            CONTROL.B = 0
+        elseif KEY:lower() == 'a' then
+            CONTROL.L = 0
+        elseif KEY:lower() == 'd' then
+            CONTROL.R = 0
+        elseif KEY:lower() == 'e' then
+            CONTROL.Q = 0
+        elseif KEY:lower() == 'q' then
+            CONTROL.E = 0
+        end
+    end)
+    FLY()
 end
 
-a = Instance.new("ScreenGui")
-a.Name = "DiamondFarmUI"
-a.ResetOnSpawn = false
-a.Parent = game.CoreGui
+function NOFLY()
+    FLYING = false
+    if flyKeyDown or flyKeyUp then flyKeyDown:Disconnect() flyKeyUp:Disconnect() end
+    if Players.LocalPlayer.Character:FindFirstChildOfClass('Humanoid') then
+        Players.LocalPlayer.Character.Humanoid.PlatformStand = false
+    end
+    pcall(function() workspace.CurrentCamera.CameraType = Enum.CameraType.Custom end)
+end
 
-b = Instance.new("Frame", a)
-b.Size = UDim2.new(0, 400, 0, 260)
-b.Position = UDim2.new(0.5, -200, 0.5, -130)
-b.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-b.BorderSizePixel = 0
-b.Active = true
-b.Draggable = true
-
-c = Instance.new("UICorner", b)
-c.CornerRadius = UDim.new(0, 16)
-
-d = Instance.new("UIStroke", b)
-d.Thickness = 2
-rainbowStroke(d)
-
-e = Instance.new("TextLabel", b)
-e.Size = UDim2.new(1, 0, 0, 50)
-e.Position = UDim2.new(0, 0, 0, 0)
-e.BackgroundTransparency = 1
-e.Text = "Farm Diamonds | ringta"
-e.TextColor3 = Color3.fromRGB(255, 255, 255)
-e.Font = Enum.Font.GothamBold
-e.TextSize = 28
-e.TextStrokeTransparency = 0.6
-
-totalDiamondsLabel = Instance.new("TextLabel", b)
-totalDiamondsLabel.Size = UDim2.new(1, -40, 0, 40)
-totalDiamondsLabel.Position = UDim2.new(0, 20, 0, 60)
-totalDiamondsLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-totalDiamondsLabel.TextColor3 = Color3.new(1, 1, 1)
-totalDiamondsLabel.Font = Enum.Font.GothamBold
-totalDiamondsLabel.TextSize = 22
-totalDiamondsLabel.BorderSizePixel = 0
-totalDiamondsLabel.Text = "Total Diamonds: ..."
-local totalCorner = Instance.new("UICorner", totalDiamondsLabel)
-totalCorner.CornerRadius = UDim.new(0, 10)
-
-roundDiamondsLabel = Instance.new("TextLabel", b)
-roundDiamondsLabel.Size = UDim2.new(1, -40, 0, 36)
-roundDiamondsLabel.Position = UDim2.new(0, 20, 0, 104)
-roundDiamondsLabel.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-roundDiamondsLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
-roundDiamondsLabel.Font = Enum.Font.GothamBold
-roundDiamondsLabel.TextSize = 20
-roundDiamondsLabel.BorderSizePixel = 0
-roundDiamondsLabel.Text = "Diamonds gained this round: ..."
-local roundCorner = Instance.new("UICorner", roundDiamondsLabel)
-roundCorner.CornerRadius = UDim.new(0, 10)
-
-infoLabel = Instance.new("TextLabel", b)
-infoLabel.Size = UDim2.new(1, -40, 0, 50)
-infoLabel.Position = UDim2.new(0, 20, 0, 150)
-infoLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-infoLabel.BackgroundTransparency = 0.3
-infoLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-infoLabel.Font = Enum.Font.GothamBold
-infoLabel.TextSize = 20
-infoLabel.Text = "Waiting for diamond chest..."
-infoLabel.BorderSizePixel = 0
-local infoCorner = Instance.new("UICorner", infoLabel)
-infoCorner.CornerRadius = UDim.new(0, 12)
-
-local prevDiamondCount = tonumber(DiamondCount.Text) or 0
-local roundDiamonds = 0
-local roundActive = false
-
-task.spawn(function()
-    while task.wait(0.5) do
-        local currentDiamondCount = tonumber(DiamondCount.Text) or 0
-        totalDiamondsLabel.Text = "Total Diamonds: " .. currentDiamondCount
-        if roundActive then
-            roundDiamondsLabel.Text = "Diamonds gained this round: " .. (currentDiamondCount - prevDiamondCount)
-        else
-            roundDiamondsLabel.Text = "Diamonds gained this round: 0"
-        end
+flyToggle.event:Connect(function(v)
+    if v then
+        Players.LocalPlayer.Character:SetPrimaryPartCFrame(Players.LocalPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0,0,32))
+        task.wait(0.01)
+        Players.LocalPlayer.Character:SetPrimaryPartCFrame(Players.LocalPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0,0,32))
+        wait(0.5)
+        sFLY(true)
+    else
+        NOFLY()
     end
 end)
 
-local function updateInfo(text)
-    infoLabel.Text = text
-end
+-- took this from devforums
+local function getClosest()
+    local hrp = Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart").Position
+    local closest_distance = math.huge
+    local closestperson
 
-repeat task.wait(0.05) until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-
-chest = workspace.Items:FindFirstChild("Stronghold Diamond Chest")
-if not chest then
-    updateInfo("Chest not found, hopping server...")
-    roundActive = false
-    hopServer()
-    return
-end
-
-updateInfo("Teleporting to chest...")
-LocalPlayer.Character:PivotTo(CFrame.new(chest:GetPivot().Position))
-
-repeat
-    task.wait(0.05)
-    local prox = chest:FindFirstChild("Main")
-    if prox and prox:FindFirstChild("ProximityAttachment") then
-        proxPrompt = prox.ProximityAttachment:FindFirstChild("ProximityInteraction")
+    for i,v in pairs(game.Players:GetPlayers()) do
+        if v.Character ~= nil and v ~= Players.LocalPlayer and v.Character:FindFirstChild("HumanoidRootPart") ~= nil and v.Character:FindFirstChild("Humanoid").Health > 0 then
+            local plr_pos = v.Character.HumanoidRootPart.Position
+            local plr_distance = (hrp - plr_pos).Magnitude
+    
+            if plr_distance < closest_distance then
+                closest_distance = plr_distance
+                closestperson = v
+            end
+        end
     end
-until proxPrompt
 
-updateInfo("Opening stronghold chest...")
+    return closestperson
+end
 
-startTime = tick()
-local chestOpened = false
-while proxPrompt and proxPrompt.Parent and (tick() - startTime) < 5 do
-    local beforeDiamonds = tonumber(DiamondCount.Text) or 0
-    pcall(function()
-        fireproximityprompt(proxPrompt)
-    end)
-    task.wait(0.05)
-    local afterDiamonds = tonumber(DiamondCount.Text) or 0
-    if afterDiamonds > beforeDiamonds then
-        chestOpened = true
-        break
+local function getClosestObject(folder)
+    local distance, part = math.huge, nil
+    local Character = Players.LocalPlayer.Character
+    if Character:FindFirstChild("HumanoidRootPart") then
+        for i,v in pairs(folder:GetChildren()) do
+            if v and not v:FindFirstChild("Humanoid") and v:FindFirstChild("Health") then
+                local HRPPosition = Character:FindFirstChild("HumanoidRootPart").Position
+                for i2,v2 in pairs(v:GetChildren()) do
+                    if v2:IsA("BasePart") then
+                        local realDistance = math.abs((HRPPosition - v2.Position).Magnitude)
+        
+                        if realDistance < distance then
+                            distance = realDistance
+                            part = v2
+                        end
+                    end
+                end
+            end
+        end
     end
+    return part
 end
 
-if not chestOpened then
-    updateInfo("Couldn't open chest, hopping server...")
-    roundActive = false
-    hopServer()
-    return
-end
-
-updateInfo("Collecting diamonds...")
-roundActive = true
-prevDiamondCount = tonumber(DiamondCount.Text) or 0
-
-local diamondCheckStart = tick()
-while not workspace:FindFirstChild("Diamond", true) and (tick() - diamondCheckStart) < 3 do
-    task.wait(0.01)
-end
-
-local diamondsFound = 0
-for _, v in pairs(workspace:GetDescendants()) do
-    if v.ClassName == "Model" and v.Name == "Diamond" then
-        pcall(function()
-            Remote:FireServer(v)
-        end)
-        diamondsFound = diamondsFound + 1
-        task.wait(0.01)
+local function getClosestPickups(folder)
+    local Character = Players.LocalPlayer.Character
+    local pickups = {}
+    for i,v in pairs(folder:GetChildren()) do
+        if v:FindFirstChild("Pickup") and v:IsA("BasePart") and table.find(pickups,v) == nil and Character:FindFirstChild("HumanoidRootPart") then
+            if (Character.HumanoidRootPart.Position - v.Position).Magnitude <= 30 then
+                table.insert(pickups, v)
+            end
+        end
     end
+    return pickups
 end
 
-updateInfo("Collected " .. diamondsFound .. " diamonds, hopping server...")
-task.wait(0.5)
-hopServer()
+while wait(0.2) do
+    local Character = Players.LocalPlayer.Character
+    if killauraToggle.on then
+        if Character:FindFirstChild("HumanoidRootPart") then
+            local closest = getClosest()
+            local hrp = Character.HumanoidRootPart.Position
+
+            -- guessing the distance tbh
+            if (hrp - closest.Character.HumanoidRootPart.Position).Magnitude <= 10 then
+                ReplicatedStorage.Events.SwingTool:FireServer(ReplicatedStorage.RelativeTime.Value, {
+                    [1] = closest.Character.HumanoidRootPart
+                })
+            end
+        end
+    end
+
+    if autohealToggle.on then
+        if Character:FindFirstChild("Humanoid") then
+            if Character.Humanoid.Health <= autohealSlider.value then
+                game:GetService("ReplicatedStorage").Events.UseBagltem:FireServer("Bloodfruit")
+            end
+        end
+    end
+
+    if breakauraToggle.on then
+        local closestPart = getClosestObject(workspace)
+        local hrp = Character.HumanoidRootPart.Position
+        
+        if (hrp - closestPart.Position).Magnitude <= 40 then
+            ReplicatedStorage.Events.SwingTool:FireServer(ReplicatedStorage.RelativeTime.Value, {
+                [1] = closestPart
+            })
+        end
+    end
+
+    if pickupToggle.on then
+        for i,v in pairs(getClosestPickups(workspace)) do
+            game:GetService("ReplicatedStorage").Events.Pickup:FireServer(v)
+        end
+    end
+    if autofarmToggle.on then
+        local part = getClosestObject(workspace)
+        local HRPPosition = Players.LocalPlayer.Character.HumanoidRootPart.Position
+        local realDistance = math.round(math.abs((HRPPosition - part.Position).Magnitude))
+    
+        ReplicatedStorage.Events.SwingTool:FireServer(ReplicatedStorage.RelativeTime.Value, {
+            [1] = part
+        })
+        for i,v in pairs(getClosestPickups(workspace)) do
+            game:GetService("ReplicatedStorage").Events.Pickup:FireServer(v)
+        end
+        wait(0.1)
+        if part.Position.Y <= 30 then
+            TweenService:Create(Players.LocalPlayer.Character.HumanoidRootPart, TweenInfo.new(realDistance/10, Enum.EasingStyle.Linear), {CFrame=part.CFrame+Vector3.new(0,part.Size.Y,0)}):Play()
+            task.wait(realDistance/10)
+        end
+    end
+
+    if autoPlant.on then
+        local hrp = Character.HumanoidRootPart.Position
+        for i,v in pairs(workspace.Deployables:GetChildren()) do
+            if v.Name == "Plant Box" then
+                local part = v:FindFirstChildOfClass("Part")
+                if (hrp - part.Position).Magnitude <= 10 then
+                    game:GetService("ReplicatedStorage").Events.lnteractStructure:FireServer(v, chosenFruit)
+                end
+            end
+        end
+    end
+
+    if autoharvest.on then
+        local hrp = Character.HumanoidRootPart.Position
+        for i,v in pairs(workspace:GetChildren()) do
+            if v.Name == chosenFruit.." Bush" and (hrp - v:FindFirstChildOfClass("Part").Position).Magnitude <= 30 then
+                game:GetService("ReplicatedStorage").Events.Pickup:FireServer(v)
+            end
+        end
+        end
+end
