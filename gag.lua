@@ -1,238 +1,209 @@
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local CoreGui = game:GetService("StarterGui")
+local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
-local player = Players.LocalPlayer
-local AnimalsModule = require(ReplicatedStorage.Datas.Animals)
-local TraitsModule = require(ReplicatedStorage.Datas.Traits)
-local MutationsModule = require(ReplicatedStorage.Datas.Mutations)
-local PlotController = require(ReplicatedStorage.Controllers:WaitForChild("PlotController"))
+local Remote = game:GetService("ReplicatedStorage").RemoteEvents.RequestTakeDiamonds
+local Interface = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Interface")
+local DiamondCount = Interface:WaitForChild("DiamondCount"):WaitForChild("Count")
 
-local ALL_ANIMAL_NAMES = {
-    ["Noobini Pizzanini"] = true,
-    ["LirilÃ¬ LarilÃ "] = true,
-    ["Tim Cheese"] = true,
-    ["Fluriflura"] = true,
-    ["Svinina Bombardino"] = true,
-    ["Talpa Di Fero"] = true,
-    ["Pipi Kiwi"] = true,
-    ["Trippi Troppi"] = true,
-    ["Tung Tung Tung Sahur"] = true,
-    ["Gangster Footera"] = true,
-    ["Boneca Ambalabu"] = true,
-    ["Ta Ta Ta Ta Sahur"] = true,
-    ["Tric Trac Baraboom"] = true,
-    ["Bandito Bobritto"] = true,
-    ["Cacto Hipopotamo"] = true,
-    ["Cappuccino Assassino"] = true,
-    ["Brr Brr Patapim"] = true,
-    ["Trulimero Trulicina"] = true,
-    ["Bananita Dolphinita"] = true,
-    ["Brri Brri Bicus Dicus Bombicus"] = true,
-    ["Bambini Crostini"] = true,
-    ["Perochello Lemonchello"] = true,
-    ["Burbaloni Loliloli"] = true,
-    ["Chimpanzini Bananini"] = true,
-    ["Ballerina Cappuccina"] = true,
-    ["Chef Crabracadabra"] = true,
-    ["Glorbo Fruttodrillo"] = true,
-    ["Blueberrinni Octopusini"] = true,
-    ["Lionel Cactuseli"] = true,
-    ["Pandaccini Bananini"] = true,
-    ["Frigo Camelo"] = true,
-    ["Orangutini Ananassini"] = true,
-    ["Bombardiro Crocodilo"] = true,
-    ["Bombombini Gusini"] = true,
-    ["Rhino Toasterino"] = true,
-    ["Cavallo Virtuoso"] = true,
-    ["Spioniro Golubiro"] = true,
-    ["Zibra Zubra Zibralini"] = true,
-    ["Tigrilini Watermelini"] = true,
-    ["Cocofanto Elefanto"] = true,
-    ["Tralalero Tralala"] = true,
-    ["Odin Din Din Dun"] = true,
-    ["Girafa Celestre"] = true,
-    ["Gattatino Nyanino"] = true,
-    ["Trenostruzzo Turbo 3000"] = true,
-    ["Matteo"] = true,
-    ["Tigroligre Frutonni"] = true,
-    ["Orcalero Orcala"] = true,
-    ["Statutino Libertino"] = true,
-    ["Gattatino Neonino"] = true,
-    ["La Vacca Saturno Saturnita"] = true,
-    ["Los Tralaleritos"] = true,
-    ["Graipuss Medussi"] = true,
-    ["La Grande Combinasion"] = true,
-    ["Chimpanzini Spiderini"] = true,
-    ["Garama and Madundung"] = true,
-    ["Torrtuginni Dragonfrutini"] = true,
-    ["Las Tralaleritas"] = true,
-    ["Pot Hotspot"] = true,
-    ["Mythic Lucky Block"] = true,
-    ["Brainrot God Lucky Block"] = true,
-    ["Secret Lucky Block"] = true
-}
+local a, b, c, d, e, totalDiamondsLabel, roundDiamondsLabel, infoLabel
+local chest, proxPrompt
+local startTime
 
-local function getTraitMultiplier(model)
-    local traitSource = model:FindFirstChild("Instance") or model
-    local traitJson = traitSource:GetAttribute("Traits")
-    if not traitJson then return 1 end
-    local success, traitList = pcall(function()
-        return HttpService:JSONDecode(traitJson)
-    end)
-    if not success or typeof(traitList) ~= "table" then return 1 end
-    local mult = 1
-    for _, traitName in ipairs(traitList) do
-        local trait = TraitsModule[traitName]
-        if trait and trait.MultiplierModifier then
-            mult *= trait.MultiplierModifier
-        end
-    end
-    return mult
-end
-
-local function getMutationInfo(model)
-    local mutationName = model:GetAttribute("Mutation")
-    if not mutationName then return nil, nil, 1 end
-    local data = MutationsModule[mutationName]
-    if data and data.Price then
-        return mutationName, data, data.Price
-    end
-    return mutationName, data, 1
-end
-
-local function getFinalGeneration(model)
-    local animalData = AnimalsModule[model.Name]
-    if not animalData then return 0, nil end
-    local baseGen = animalData.Generation or 0
-    local traitMult = getTraitMultiplier(model)
-    local mutationName, mutationData, mutationPrice = getMutationInfo(model)
-    local mutationMult = (mutationData and mutationData.MultiplierModifier) or 1
-    local total = baseGen * traitMult * mutationMult * (mutationPrice or 1)
-    return math.round(total), mutationName
-end
-
-local function getMyPlot()
-    local ok, result = pcall(function() return PlotController:GetMyPlot() end)
-    if not ok or not result then return nil end
-    local plotModel = result and result.PlotModel
-    return typeof(plotModel) == "Instance" and plotModel or nil
-end
-
-local function isInEnemyPlot(model)
-    local myPlot = getMyPlot()
-    if not myPlot then return true end
-    return not myPlot:IsAncestorOf(model)
-end
-
-local function isBasePet(m)
-    return m:IsA("Model") and ALL_ANIMAL_NAMES[m.Name]
-end
-
-local function startRainbow(obj, prop)
-    local cycleTime = 4
+local function rainbowStroke(stroke)
     task.spawn(function()
-        while obj and obj.Parent do
-            local h = (tick() % cycleTime) / cycleTime
-            obj[prop] = Color3.fromHSV(h, 1, 1)
-            RunService.Heartbeat:Wait()
+        while task.wait() do
+            for hue = 0, 1, 0.01 do
+                stroke.Color = Color3.fromHSV(hue, 1, 1)
+                task.wait(0.02)
+            end
         end
     end)
 end
 
-local function formatNumber(n)
-    return tostring(n):reverse():gsub('%d%d%d', '%1,'):reverse():gsub('^,', '')
-end
-
-local function attachPetESP(m, g, mutationName)
-    local root = m:FindFirstChild("RootPart") or m:FindFirstChildWhichIsA("BasePart")
-    if not root then return end
-    local hl = Instance.new('Highlight')
-    hl.Name = "PetESP"
-    hl.Adornee = m
-    hl.OutlineColor = Color3.new(0, 0, 0)
-    hl.FillTransparency = 0.25
-    hl.OutlineTransparency = 0
-    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    hl.Parent = m
-    startRainbow(hl, "FillColor")
-    startRainbow(hl, "OutlineColor")
-
-    local gui = Instance.new('BillboardGui')
-    gui.Name = "PetESP_Label"
-    gui.Adornee = root
-    gui.AlwaysOnTop = true
-    gui.Size = UDim2.new(0, 400, 0, 100)
-    gui.StudsOffset = Vector3.new(0, 6.5, 0)
-    gui.Parent = m
-
-    local n = Instance.new('TextLabel')
-    n.Size = UDim2.new(1, 0, 0.4, 0)
-    n.Position = UDim2.new(0.5, 0, 0.28, 0)
-    n.AnchorPoint = Vector2.new(0.5, 0.5)
-    n.BackgroundTransparency = 1
-    n.Font = Enum.Font.GothamBlack
-    n.TextSize = 22
-    n.Text = m.Name:upper()
-    n.TextXAlignment = Enum.TextXAlignment.Center
-    n.Parent = gui
-
-    local gL = Instance.new('TextLabel')
-    gL.Size = UDim2.new(1, 0, 0.4, 0)
-    gL.Position = UDim2.new(0.5, 0, 0.55, 0)
-    gL.AnchorPoint = Vector2.new(0.5, 0.5)
-    gL.BackgroundTransparency = 1
-    gL.Font = Enum.Font.GothamBlack
-    gL.TextSize = 28
-    gL.Text = '$' .. formatNumber(g) .. '/s'
-    gL.TextXAlignment = Enum.TextXAlignment.Center
-    gL.Parent = gui
-
-    if mutationName then
-        local mutL = Instance.new('TextLabel')
-        mutL.Size = UDim2.new(1, 0, 0.2, 0)
-        mutL.Position = UDim2.new(0.5, 0, 0.82, 0)
-        mutL.AnchorPoint = Vector2.new(0.5, 0.5)
-        mutL.BackgroundTransparency = 1
-        mutL.Font = Enum.Font.GothamBlack
-        mutL.TextSize = 20
-        mutL.Text = "Mutation: " .. tostring(mutationName)
-        mutL.TextXAlignment = Enum.TextXAlignment.Center
-        mutL.Parent = gui
-        startRainbow(mutL, 'TextColor3')
-    end
-
-    startRainbow(n, 'TextColor3')
-    startRainbow(gL, 'TextColor3')
-end
-
-local function clearPetESP()
-    for _, m in ipairs(workspace:GetChildren()) do
-        if m:FindFirstChild("PetESP") then m.PetESP:Destroy() end
-        if m:FindFirstChild("PetESP_Label") then m.PetESP_Label:Destroy() end
-    end
-end
-
-local INTERVAL = 0.25
-local running = true
-
-task.spawn(function()
-    while running do
-        local highest, bestGen, mutationName = nil, -1, nil
-        for _, m in ipairs(workspace:GetChildren()) do
-            if isBasePet(m) and isInEnemyPlot(m) then
-                local g, mutName = getFinalGeneration(m)
-                if g > bestGen then
-                    bestGen = g
-                    highest = m
-                    mutationName = mutName
+local function hopServer()
+    local gameId = game.PlaceId
+    while true do
+        local success, body = pcall(function()
+            return game:HttpGet(("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(gameId))
+        end)
+        if success then
+            local data = HttpService:JSONDecode(body)
+            for _, server in ipairs(data.data) do
+                if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                    while true do
+                        pcall(function()
+                            TeleportService:TeleportToPlaceInstance(gameId, server.id, LocalPlayer)
+                        end)
+                        task.wait(0.1)
+                    end
                 end
             end
         end
-        clearPetESP()
-        if highest then
-            attachPetESP(highest, bestGen, mutationName)
+        task.wait(3) -- Added delay here (was 0.2 before), now waits 3 seconds between server hops
+    end
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        for _, char in pairs(workspace.Characters:GetChildren()) do
+            if char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
+                if char:FindFirstChild("Humanoid").DisplayName == LocalPlayer.DisplayName then
+                    hopServer()
+                end
+            end
         end
-        task.wait(INTERVAL)
     end
 end)
+
+a = Instance.new("ScreenGui")
+a.Name = "DiamondFarmUI"
+a.ResetOnSpawn = false
+a.Parent = game.CoreGui
+
+b = Instance.new("Frame", a)
+b.Size = UDim2.new(0, 400, 0, 260)
+b.Position = UDim2.new(0.5, -200, 0.5, -130)
+b.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+b.BorderSizePixel = 0
+b.Active = true
+b.Draggable = true
+
+c = Instance.new("UICorner", b)
+c.CornerRadius = UDim.new(0, 16)
+
+d = Instance.new("UIStroke", b)
+d.Thickness = 2
+rainbowStroke(d)
+
+e = Instance.new("TextLabel", b)
+e.Size = UDim2.new(1, 0, 0, 50)
+e.Position = UDim2.new(0, 0, 0, 0)
+e.BackgroundTransparency = 1
+e.Text = "Farm Diamonds | ringta"
+e.TextColor3 = Color3.fromRGB(255, 255, 255)
+e.Font = Enum.Font.GothamBold
+e.TextSize = 28
+e.TextStrokeTransparency = 0.6
+
+totalDiamondsLabel = Instance.new("TextLabel", b)
+totalDiamondsLabel.Size = UDim2.new(1, -40, 0, 40)
+totalDiamondsLabel.Position = UDim2.new(0, 20, 0, 60)
+totalDiamondsLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+totalDiamondsLabel.TextColor3 = Color3.new(1, 1, 1)
+totalDiamondsLabel.Font = Enum.Font.GothamBold
+totalDiamondsLabel.TextSize = 22
+totalDiamondsLabel.BorderSizePixel = 0
+totalDiamondsLabel.Text = "Total Diamonds: ..."
+local totalCorner = Instance.new("UICorner", totalDiamondsLabel)
+totalCorner.CornerRadius = UDim.new(0, 10)
+
+roundDiamondsLabel = Instance.new("TextLabel", b)
+roundDiamondsLabel.Size = UDim2.new(1, -40, 0, 36)
+roundDiamondsLabel.Position = UDim2.new(0, 20, 0, 104)
+roundDiamondsLabel.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+roundDiamondsLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+roundDiamondsLabel.Font = Enum.Font.GothamBold
+roundDiamondsLabel.TextSize = 20
+roundDiamondsLabel.BorderSizePixel = 0
+roundDiamondsLabel.Text = "Diamonds gained this round: ..."
+local roundCorner = Instance.new("UICorner", roundDiamondsLabel)
+roundCorner.CornerRadius = UDim.new(0, 10)
+
+infoLabel = Instance.new("TextLabel", b)
+infoLabel.Size = UDim2.new(1, -40, 0, 50)
+infoLabel.Position = UDim2.new(0, 20, 0, 150)
+infoLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+infoLabel.BackgroundTransparency = 0.3
+infoLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+infoLabel.Font = Enum.Font.GothamBold
+infoLabel.TextSize = 20
+infoLabel.Text = "Waiting for diamond chest..."
+infoLabel.BorderSizePixel = 0
+local infoCorner = Instance.new("UICorner", infoLabel)
+infoCorner.CornerRadius = UDim.new(0, 12)
+
+local prevDiamondCount = tonumber(DiamondCount.Text) or 0
+local roundDiamonds = 0
+local roundActive = false
+
+task.spawn(function()
+    while task.wait(0.2) do
+        local currentDiamondCount = tonumber(DiamondCount.Text) or 0
+        totalDiamondsLabel.Text = "Total Diamonds: " .. currentDiamondCount
+        if roundActive then
+            roundDiamondsLabel.Text = "Diamonds gained this round: " .. (currentDiamondCount - prevDiamondCount)
+        else
+            roundDiamondsLabel.Text = "Diamonds gained this round: 0"
+        end
+    end
+end)
+
+local function updateInfo(text)
+    infoLabel.Text = text
+end
+
+repeat task.wait() until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+chest = workspace.Items:FindFirstChild("Stronghold Diamond Chest")
+if not chest then
+    updateInfo("Chest not found (my fault), hopping server...")
+    roundActive = false
+    hopServer()
+    return
+end
+
+updateInfo("Teleporting to chest...")
+LocalPlayer.Character:PivotTo(CFrame.new(chest:GetPivot().Position))
+
+repeat
+    task.wait(0.1)
+    local prox = chest:FindFirstChild("Main")
+    if prox and prox:FindFirstChild("ProximityAttachment") then
+        proxPrompt = prox.ProximityAttachment:FindFirstChild("ProximityInteraction")
+    end
+until proxPrompt
+
+updateInfo("Trying to open stronghold chest...")
+
+startTime = tick()
+local chestOpened = false
+while proxPrompt and proxPrompt.Parent and (tick() - startTime) < 10 do
+    local beforeDiamonds = tonumber(DiamondCount.Text) or 0
+    pcall(function()
+        fireproximityprompt(proxPrompt)
+    end)
+    task.wait(0.2)
+    local afterDiamonds = tonumber(DiamondCount.Text) or 0
+    if afterDiamonds > beforeDiamonds then
+        chestOpened = true
+        break
+    end
+end
+
+if not chestOpened then
+    updateInfo("Couldn't open stronghold chest, hopping server...")
+    roundActive = false
+    hopServer()
+    return
+end
+
+updateInfo("Searching for diamonds in workspace...")
+roundActive = true
+prevDiamondCount = tonumber(DiamondCount.Text) or 0
+
+repeat task.wait(0.1) until workspace:FindFirstChild("Diamond", true)
+
+local diamondsFound = 0
+for _, v in pairs(workspace:GetDescendants()) do
+    if v.ClassName == "Model" and v.Name == "Diamond" then
+        Remote:FireServer(v)
+        diamondsFound = diamondsFound + 1
+    end
+end
+
+updateInfo("Took all diamonds (" .. diamondsFound .. "), hopping server...")
+
+task.wait(1)
+hopServer()
